@@ -27,9 +27,11 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<HistoryItem[]>(() => {
     try {
       const saved = localStorage.getItem('rtl_audit_history');
-      const items: HistoryItem[] = saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const items: HistoryItem[] = JSON.parse(saved);
       return items.map(item => item.status === 'processing' ? { ...item, status: 'pending' } : item);
     } catch (e) {
+      console.error("Failed to load history:", e);
       return [];
     }
   });
@@ -289,7 +291,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-3">
               <ShieldCheck className="text-blue-500" size={24} />
               <h1 className="text-lg font-black tracking-tight text-white uppercase italic text-shadow flex items-center">
-                RTL Copy Auditor <span className="ml-3 text-[10px] font-mono not-italic bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30 uppercase tracking-widest self-center">V0.1</span>
+                RTL COPY AUDITOR <span className="ml-4 text-[11px] font-black not-italic bg-gradient-to-r from-blue-600 to-indigo-500 text-white px-4 py-1.5 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.5)] border border-blue-400/30 uppercase tracking-[0.25em] self-center">V0.1</span>
               </h1>
             </div>
           </div>
@@ -395,7 +397,6 @@ const App: React.FC = () => {
                 {activeItem.status === 'completed' && activeItem.analysis ? (
                   <div className="space-y-6 animate-in slide-in-from-right-8 duration-700">
                     
-                    {/* 总结卡片 */}
                     <div className="bg-slate-900/80 border-2 border-blue-500/20 rounded-[2rem] p-8 shadow-2xl backdrop-blur-sm">
                        <h4 className="text-blue-400 text-[10px] font-black uppercase tracking-[0.4em] mb-4">识别概览</h4>
                        <p className={`text-white text-xl font-black leading-tight`}>
@@ -403,7 +404,6 @@ const App: React.FC = () => {
                        </p>
                     </div>
 
-                    {/* 语种鉴定 */}
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center justify-between">
                         <span className="flex items-center gap-2 text-slate-400 font-black text-[10px] uppercase tracking-widest">
                           <Languages size={14} className="text-blue-500" /> 语种识别
@@ -413,7 +413,6 @@ const App: React.FC = () => {
                         </span>
                     </div>
 
-                    {/* 结果明细 */}
                     <div className="space-y-4">
                       {activeItem.analysis.displayErrors && activeItem.analysis.displayErrors.length > 0 ? (
                         <>
