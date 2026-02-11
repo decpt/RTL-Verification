@@ -1,0 +1,5 @@
+{
+  "name": "Web3 RTL 语言布局走查",
+  "description": "专业的 Web3 界面 RTL（右至左）语言分析工具，提供波斯语/阿拉伯语的语言校验与布局错误检测。",
+  "requestFramePermissions": []
+}
