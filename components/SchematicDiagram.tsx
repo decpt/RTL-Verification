@@ -61,7 +61,7 @@ const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ imageSrc, annotatio
       frameRef.current += 1;
       const pulse = 1 + Math.sin(frameRef.current * 0.15) * 0.1;
 
-      // 绘制选框
+      // 1. 绘制选框
       annotations.forEach((item, index) => {
         const box = item.location;
         if (!box) return;
@@ -103,7 +103,7 @@ const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ imageSrc, annotatio
         ctx.restore();
       });
 
-      // 绘制标签气泡
+      // 2. 绘制标签气泡
       annotations.forEach((item, index) => {
         const box = item.location;
         if (!box) return;
@@ -140,7 +140,7 @@ const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ imageSrc, annotatio
 
         ctx.fillStyle = color;
         ctx.beginPath();
-        // @ts-ignore - roundRect is supported in modern browsers but missing in some TS definitions
+        // @ts-ignore
         if (ctx.roundRect) {
           ctx.roundRect(drawX - radius, drawY - radius, radius * 2, radius * 2, 8);
         } else {
