@@ -34,7 +34,7 @@ const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ imageSrc, annotatio
       if (!canvas || !ctx || !img || !container) return;
 
       const availableWidth = container.clientWidth;
-      const availableHeight = window.innerHeight * 0.8;
+      const availableHeight = window.innerHeight * 0.7; // 调整为屏幕高度的 70%
 
       const scaleW = availableWidth / img.width;
       const scaleH = availableHeight / img.height;
@@ -172,7 +172,7 @@ const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ imageSrc, annotatio
         ctx.fillText(labelText, drawX, drawY);
 
         ctx.restore();
-      });
+      };
     };
 
     const startRenderLoop = () => {
@@ -191,8 +191,8 @@ const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ imageSrc, annotatio
   }, [imageSrc, annotations, activeHighlightIndex]);
 
   return (
-    <div ref={containerRef} className="w-full flex justify-center items-center bg-slate-900/40 rounded-[2.5rem] overflow-hidden p-4 border border-slate-800/60 shadow-inner">
-      <canvas ref={canvasRef} className="block shadow-2xl border-2 border-slate-700/40 rounded-2xl max-h-[80vh] object-contain transition-all duration-300" />
+    <div ref={containerRef} className="w-full h-full flex justify-center items-center bg-slate-900/40 rounded-[2.5rem] overflow-hidden p-4 border border-slate-800/60 shadow-inner hover:bg-blue-500/5 hover:border-blue-500/50 transition-all duration-500 group cursor-crosshair">
+      <canvas ref={canvasRef} className="block shadow-2xl border-2 border-slate-700/40 rounded-2xl max-h-[70vh] object-contain transition-all duration-300 group-hover:border-blue-500/30" />
     </div>
   );
 };

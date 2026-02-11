@@ -25,10 +25,13 @@ import SchematicDiagram from './components/SchematicDiagram';
 
 const App: React.FC = () => {
   const [history, setHistory] = useState<HistoryItem[]>(() => {
-    const saved = localStorage.getItem('rtl_audit_history');
-    // 如果恢复时有正在处理中的，重置为 pending 以便重新触发
-    const items: HistoryItem[] = saved ? JSON.parse(saved) : [];
-    return items.map(item => item.status === 'processing' ? { ...item, status: 'pending' } : item);
+    try {
+      const saved = localStorage.getItem('rtl_audit_history');
+      const items: HistoryItem[] = saved ? JSON.parse(saved) : [];
+      return items.map(item => item.status === 'processing' ? { ...item, status: 'pending' } : item);
+    } catch (e) {
+      return [];
+    }
   });
   
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -155,7 +158,6 @@ const App: React.FC = () => {
     }
   }, [history, activeId, showToast]);
 
-  // 当处于 pending 状态的项被激活或存在时，自动运行识别
   useEffect(() => {
     const pendingItems = history.filter(item => item.status === 'pending');
     pendingItems.forEach(item => runAnalysis(item.id));
@@ -274,7 +276,7 @@ const App: React.FC = () => {
       </aside>
 
       {/* 主体内容 */}
-      <main className="flex-1 flex flex-col min-w-0 h-full">
+      <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <header className="h-20 shrink-0 border-b border-slate-800 bg-slate-900/50 backdrop-blur-xl px-8 flex items-center justify-between z-10">
           <div className="flex items-center gap-4">
             <button 
@@ -286,8 +288,8 @@ const App: React.FC = () => {
             <div className="h-6 w-[1px] bg-slate-800 mx-2"></div>
             <div className="flex items-center gap-3">
               <ShieldCheck className="text-blue-500" size={24} />
-              <h1 className="text-lg font-black tracking-tight text-white uppercase italic text-shadow">
-                RTL Copy Auditor <span className="text-blue-500 font-mono not-italic">2.5</span>
+              <h1 className="text-lg font-black tracking-tight text-white uppercase italic text-shadow flex items-center">
+                RTL Copy Auditor <span className="ml-3 text-[10px] font-mono not-italic bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30 uppercase tracking-widest self-center">V0.1</span>
               </h1>
             </div>
           </div>
@@ -311,35 +313,35 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 relative flex flex-col items-center justify-center overflow-hidden">
           {!activeItem ? (
-            <div className="h-full overflow-y-auto p-8">
+            <div className="w-full flex items-center justify-center px-8 lg:px-12">
               <div 
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={(e) => { e.preventDefault(); setIsDragging(false); const file = e.dataTransfer.files?.[0]; if (file) createHistoryEntry(file); }}
-                className={`max-w-4xl mx-auto h-[600px] flex flex-col items-center justify-center border-2 border-dashed rounded-[3rem] transition-all duration-700 group ${
-                  isDragging ? 'border-blue-500 bg-blue-500/5' : 'border-slate-800 hover:border-slate-700 hover:bg-slate-900/40'
+                className={`w-full max-w-4xl h-[70vh] flex flex-col items-center justify-center border-2 border-dashed rounded-[3rem] transition-all duration-700 group cursor-pointer ${
+                  isDragging ? 'border-blue-500 bg-blue-500/10' : 'border-slate-800 hover:border-blue-500/50 hover:bg-blue-500/5'
                 }`}
               >
-                <div className="w-24 h-24 bg-slate-900 rounded-[2rem] flex items-center justify-center shadow-2xl border border-slate-800 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 mb-8">
-                  <Type className="text-slate-700 group-hover:text-blue-500" size={40} />
+                <div className="w-20 h-20 bg-slate-900 rounded-[1.75rem] flex items-center justify-center shadow-2xl border border-slate-800 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 mb-8 group-hover:border-blue-500/30">
+                  <Type className="text-slate-700 group-hover:text-blue-500" size={32} />
                 </div>
                 <h2 className="text-2xl font-black text-white uppercase tracking-widest mb-4 text-center px-6">等待 RTL 界面识别</h2>
                 <div className="flex flex-col items-center gap-6">
-                  <p className="text-slate-500 text-sm font-medium">支持拖入截图、选择文件或直接粘贴 (Ctrl+V)</p>
+                  <p className="text-slate-500 text-sm font-medium tracking-tight">支持拖入截图、选择文件或直接粘贴 (Ctrl+V)</p>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex h-full w-full lg:flex-row flex-col p-8 gap-8">
+            <div className="w-full h-full flex lg:flex-row flex-col p-8 lg:p-12 gap-8 overflow-hidden items-center justify-center">
               
               {/* 左侧：标注图区 */}
-              <div className="lg:w-[60%] flex flex-col gap-6 lg:sticky lg:top-0 z-10">
+              <div className="lg:w-[60%] flex flex-col gap-6 h-full relative overflow-hidden justify-center items-center">
                 {activeItem.status !== 'completed' ? (
-                  <div className="relative group rounded-[2rem] overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl flex items-center justify-center h-full max-h-[80vh]">
-                    <img src={activeItem.image} alt="Target" className={`max-h-[80vh] w-auto object-contain transition-all duration-1000 ${activeItem.status === 'processing' ? 'opacity-30 blur-xl scale-110' : ''}`} />
+                  <div className="relative group rounded-[2rem] overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl flex items-center justify-center w-full h-[70vh] hover:border-blue-500/50 hover:bg-blue-500/5 transition-all duration-500">
+                    <img src={activeItem.image} alt="Target" className={`max-h-full w-auto object-contain transition-all duration-1000 ${activeItem.status === 'processing' ? 'opacity-30 blur-xl scale-110' : ''}`} />
                     
                     {activeItem.status === 'pending' && (
                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm">
@@ -353,7 +355,7 @@ const App: React.FC = () => {
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-8">
                         <Loader2 className="animate-spin text-blue-500" size={60} />
                         <div className="text-center">
-                          <p className="text-white font-black text-xl uppercase tracking-wider animate-pulse">图像识别中</p>
+                          <p className="text-white font-black text-xl uppercase tracking-normal">图像识别中</p>
                         </div>
                       </div>
                     )}
@@ -369,14 +371,14 @@ const App: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-6 animate-in slide-in-from-left-8 duration-700 h-full flex flex-col">
+                  <div className="space-y-6 animate-in slide-in-from-left-8 duration-700 h-full w-full flex flex-col justify-center">
                     <div className="flex items-center gap-3 px-2">
                       <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
                         <Type className="text-blue-500" size={16} />
                       </div>
                       <h3 className="text-lg font-black text-white uppercase italic">Recognition Alignment Map</h3>
                     </div>
-                    <div className="flex-1 min-h-0">
+                    <div className="flex-1 min-h-0 flex items-center justify-center">
                       <SchematicDiagram 
                         imageSrc={activeItem.image} 
                         annotations={activeItem.analysis?.displayErrors || []} 
@@ -389,7 +391,7 @@ const App: React.FC = () => {
               </div>
 
               {/* 右侧：报告区 */}
-              <div className={`lg:w-[40%] flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-6 pl-2 h-full pb-20 transition-all duration-300 isolate ${activeHighlightIndex !== null ? 'z-30 relative' : 'z-10 relative'}`}>
+              <div className={`lg:w-[40%] flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-6 pl-2 h-full py-4 transition-all duration-300 isolate ${activeHighlightIndex !== null ? 'z-30 relative' : 'z-10 relative'}`}>
                 {activeItem.status === 'completed' && activeItem.analysis ? (
                   <div className="space-y-6 animate-in slide-in-from-right-8 duration-700">
                     
@@ -418,7 +420,7 @@ const App: React.FC = () => {
                           <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 flex items-center gap-2 sticky top-0 bg-slate-950/95 py-3 backdrop-blur-md z-20 border-b border-slate-800/50">
                             <FileText size={14} className="text-red-500" /> 异常项 ({activeItem.analysis.displayErrors.length})
                           </h3>
-                          <div className="space-y-4">
+                          <div className="space-y-4 pb-20">
                             {activeItem.analysis.displayErrors.map((err, idx) => {
                               const isLeftAlign = err.content.toLowerCase().includes('左对齐') || err.overview.includes('左对齐');
                               const isCenterAlign = err.content.toLowerCase().includes('居中') || err.overview.includes('居中');
