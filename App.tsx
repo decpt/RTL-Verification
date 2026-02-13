@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Upload, 
@@ -291,7 +290,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-3">
               <ShieldCheck className="text-blue-500" size={24} />
               <h1 className="text-lg font-black tracking-tight text-white uppercase italic text-shadow flex items-center">
-                RTL COPY AUDITOR <span className="ml-4 text-[11px] font-black not-italic bg-gradient-to-r from-blue-600 to-indigo-500 text-white px-4 py-1.5 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.5)] border border-blue-400/30 uppercase tracking-[0.25em] self-center">V0.1</span>
+                RTL COPY AUDITOR <span className="ml-4 text-[11px] font-black not-italic bg-gradient-to-r from-blue-600 to-indigo-500 text-white px-4 py-1.5 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.5)] border border-blue-400/30 uppercase tracking-[0.25em] self-center">V0.2</span>
               </h1>
             </div>
           </div>
@@ -332,7 +331,7 @@ const App: React.FC = () => {
                 </div>
                 <h2 className="text-2xl font-black text-white uppercase tracking-widest mb-4 text-center px-6">等待 RTL 界面识别</h2>
                 <div className="flex flex-col items-center gap-6">
-                  <p className="text-slate-500 text-sm font-medium tracking-tight">支持拖入截图、选择文件或直接粘贴 (Ctrl+V)</p>
+                  <p className="text-slate-500 text-sm font-medium tracking-tight group-hover:text-slate-500">支持拖入截图、选择文件或直接粘贴 (Ctrl+V)</p>
                 </div>
               </div>
             </div>
