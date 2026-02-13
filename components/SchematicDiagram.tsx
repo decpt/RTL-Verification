@@ -118,8 +118,7 @@ const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ imageSrc, annotatio
         
         const radius = 14;
         let drawY = y - radius * 2.5;
-        let isTopCut = drawY < 20;
-        if (isTopCut) {
+        if (drawY < 20) {
           drawY = y + radius * 1.5;
         }
 
@@ -141,23 +140,11 @@ const SchematicDiagram: React.FC<SchematicDiagramProps> = ({ imageSrc, annotatio
         ctx.beginPath();
         // @ts-ignore
         if (ctx.roundRect) {
+          // @ts-ignore
           ctx.roundRect(drawX - radius, drawY - radius, radius * 2, radius * 2, 8);
         } else {
           ctx.rect(drawX - radius, drawY - radius, radius * 2, radius * 2);
         }
-        ctx.fill();
-
-        ctx.beginPath();
-        if (isTopCut) {
-          ctx.moveTo(drawX - 5, drawY - radius);
-          ctx.lineTo(drawX + 5, drawY - radius);
-          ctx.lineTo(drawX, drawY - radius - 6);
-        } else {
-          ctx.moveTo(drawX - 5, drawY + radius);
-          ctx.lineTo(drawX + 5, drawY + radius);
-          ctx.lineTo(drawX, drawY + radius + 6);
-        }
-        ctx.closePath();
         ctx.fill();
 
         ctx.fillStyle = '#FFFFFF';
