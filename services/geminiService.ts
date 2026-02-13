@@ -4,6 +4,7 @@ import { SYSTEM_INSTRUCTION } from "../constants";
 import { RTLAnalysis } from "../types";
 
 export const analyzeRTLInterface = async (base64Image: string): Promise<RTLAnalysis> => {
+  // 必须在调用前实例化，以确保使用最新的 process.env.API_KEY
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
@@ -70,6 +71,10 @@ export const analyzeRTLInterface = async (base64Image: string): Promise<RTLAnaly
     if (err.message?.includes('500') || err.message?.includes('xhr')) {
       throw new Error("服务端响应超时或错误 (500)，可能是图片过大或网络不稳定，请重试。");
     }
-    throw new Error("模型处理失败，请检查图片内容是否清晰后重试。");
+    // 特殊处理密钥未找到的错误
+    if (err.message?.includes("Requested entity was not found")) {
+      throw new Error("Requested entity was not found. 可能是 API Key 无效或项目未正确配置。");
+    }
+    throw new Error(err.message || "模型处理失败，请检查图片内容是否清晰后重试。");
   }
 };

@@ -153,7 +153,7 @@ const App: React.FC = () => {
       console.error(err);
       setHistory(prev => prev.map(item => item.id === id ? { ...item, status: 'failed' } : item));
       if (activeId === id) {
-        showToast(err.message || '识别分析失败，请重试', 'error');
+        showToast(err.message || '识别分析失败，请检查密钥或重试', 'error');
       }
     } finally {
       processingRef.current.delete(id);
