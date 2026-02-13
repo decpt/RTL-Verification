@@ -1,11 +1,16 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { SYSTEM_INSTRUCTION } from "../constants";
 import { RTLAnalysis } from "../types";
 
 export const analyzeRTLInterface = async (base64Image: string): Promise<RTLAnalysis> => {
   // 必须在调用前实例化，以确保使用最新的 process.env.API_KEY
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey || apiKey === '') {
+    throw new Error("An API Key must be set when running in a browser. 请点击界面提示选择密钥。");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   
   try {
     const response = await ai.models.generateContent({
@@ -68,13 +73,16 @@ export const analyzeRTLInterface = async (base64Image: string): Promise<RTLAnaly
     return JSON.parse(jsonStr) as RTLAnalysis;
   } catch (err: any) {
     console.error("Gemini Analysis Error:", err);
+    
+    // 特殊处理密钥未找到或失效的错误
+    if (err.message?.includes("Requested entity was not found") || err.message?.includes("API key not valid")) {
+      throw new Error("Requested entity was not found. 可能是 API Key 无效或已过期，请重新配置。");
+    }
+
     if (err.message?.includes('500') || err.message?.includes('xhr')) {
       throw new Error("服务端响应超时或错误 (500)，可能是图片过大或网络不稳定，请重试。");
     }
-    // 特殊处理密钥未找到的错误
-    if (err.message?.includes("Requested entity was not found")) {
-      throw new Error("Requested entity was not found. 可能是 API Key 无效或项目未正确配置。");
-    }
+    
     throw new Error(err.message || "模型处理失败，请检查图片内容是否清晰后重试。");
   }
 };

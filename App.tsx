@@ -16,7 +16,9 @@ import {
   Type,
   CheckCircle2,
   History as HistoryIcon,
-  Trash2
+  Trash2,
+  Key,
+  ExternalLink
 } from 'lucide-react';
 import { RTLAnalysis, ErrorType, HistoryItem } from './types';
 import { analyzeRTLInterface } from './services/geminiService';
@@ -39,11 +41,44 @@ const App: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'error' | 'success' } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [needsApiKey, setNeedsApiKey] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const processingRef = useRef<Set<string>>(new Set());
 
   const activeItem = history.find(item => item.id === activeId);
+
+  // 检查 API Key 状态
+  useEffect(() => {
+    const checkApiKey = async () => {
+      // 优先检查环境变量
+      if (process.env.API_KEY && process.env.API_KEY !== '') {
+        setNeedsApiKey(false);
+        return;
+      }
+      
+      // 检查是否在 AI Studio 环境并选择了 Key
+      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setNeedsApiKey(!hasKey);
+      } else {
+        // 如果没有注入 key，则视为需要设置
+        setNeedsApiKey(true);
+      }
+    };
+    checkApiKey();
+  }, []);
+
+  const handleOpenSelectKey = async () => {
+    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+      await window.aistudio.openSelectKey();
+      // 根据规则，假设选择成功并继续
+      setNeedsApiKey(false);
+      showToast('API 密钥已更新', 'success');
+    } else {
+      showToast('无法唤起密钥选择器，请检查运行环境', 'error');
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('rtl_audit_history', JSON.stringify(history));
@@ -150,6 +185,13 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
+      
+      // 如果报错 Requested entity was not found，重置 key 状态
+      if (err.message?.includes("Requested entity was not found")) {
+        setNeedsApiKey(true);
+        showToast('API 密钥已失效，请重新配置', 'error');
+      }
+
       setHistory(prev => prev.map(item => item.id === id ? { ...item, status: 'failed' } : item));
       if (activeId === id) {
         showToast(err.message || '识别分析失败，请检查密钥或重试', 'error');
@@ -160,9 +202,10 @@ const App: React.FC = () => {
   }, [history, activeId, showToast]);
 
   useEffect(() => {
+    if (needsApiKey) return; // 如果缺失 key，不自动运行分析
     const pendingItems = history.filter(item => item.status === 'pending');
     pendingItems.forEach(item => runAnalysis(item.id));
-  }, [history, runAnalysis]);
+  }, [history, runAnalysis, needsApiKey]);
 
   const loadHistoryItem = (id: string) => {
     setActiveId(id);
@@ -191,6 +234,49 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen bg-slate-950 text-slate-200 overflow-hidden selection:bg-blue-500/30 font-sans relative">
       
+      {/* API Key 引导层 */}
+      {needsApiKey && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/80 backdrop-blur-xl animate-in fade-in duration-500">
+          <div className="max-w-md w-full mx-6 bg-slate-900 border border-slate-800 rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50"></div>
+            
+            <div className="relative z-10 text-center space-y-6">
+              <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center mx-auto border border-blue-500/30 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500">
+                <Key className="text-blue-500" size={32} />
+              </div>
+              
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black text-white uppercase tracking-tight italic">API 配置要求</h2>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  为了保证高并发审计与语言分析的稳定性，请配置您自己的 <strong>Google Gemini API 密钥</strong>。
+                </p>
+              </div>
+
+              <div className="pt-4 space-y-3">
+                <button 
+                  onClick={handleOpenSelectKey}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(37,99,235,0.4)] active:scale-95 flex items-center justify-center gap-3"
+                >
+                  <Key size={18} /> 选择 API 密钥
+                </button>
+                
+                <a 
+                  href="https://ai.google.dev/gemini-api/docs/billing" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-400 transition-colors uppercase tracking-widest"
+                >
+                  查看计费文档 <ExternalLink size={12} />
+                </a>
+              </div>
+            </div>
+
+            {/* 装饰性背景 */}
+            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-blue-600/5 rounded-full blur-[100px]"></div>
+          </div>
+        </div>
+      )}
+
       {/* Toast Notification */}
       {toast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -290,7 +376,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-3">
               <ShieldCheck className="text-blue-500" size={24} />
               <h1 className="text-lg font-black tracking-tight text-white uppercase italic text-shadow flex items-center">
-                RTL COPY AUDITOR <span className="ml-4 text-[11px] font-black not-italic bg-gradient-to-r from-blue-600 to-indigo-500 text-white px-4 py-1.5 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.5)] border border-blue-400/30 uppercase tracking-[0.25em] self-center">V0.2</span>
+                RTL COPY AUDITOR <span className="ml-4 text-[11px] font-black not-italic bg-gradient-to-r from-blue-600 to-indigo-500 text-white px-4 py-1.5 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.5)] border border-blue-400/30 uppercase tracking-[0.25em] self-center">V0.2.1</span>
               </h1>
             </div>
           </div>
