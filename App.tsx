@@ -12,31 +12,14 @@ import {
   Clock,
   X,
   AlignLeft,
-  AlignCenter,
   Type,
   CheckCircle2,
   History as HistoryIcon,
-  Trash2,
-  Key,
-  ExternalLink,
-  Save
+  Trash2
 } from 'lucide-react';
-import { RTLAnalysis, ErrorType, HistoryItem } from './types';
+import { ErrorType, HistoryItem } from './types';
 import { analyzeRTLInterface } from './services/geminiService';
 import SchematicDiagram from './components/SchematicDiagram';
-
-// Cookie 辅助函数
-const setCookie = (name: string, value: string, days: number) => {
-  const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
-};
-
-const getCookie = (name: string) => {
-  return document.cookie.split('; ').reduce((r, v) => {
-    const parts = v.split('=');
-    return parts[0] === name ? decodeURIComponent(parts[1]) : r;
-  }, '');
-};
 
 const App: React.FC = () => {
   const [history, setHistory] = useState<HistoryItem[]>(() => {
@@ -55,43 +38,12 @@ const App: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'error' | 'success' } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [needsApiKey, setNeedsApiKey] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [activeHighlightIndex, setActiveHighlightIndex] = useState<number | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const processingRef = useRef<Set<string>>(new Set());
 
   const activeItem = history.find(item => item.id === activeId);
-
-  // 初始化检查密钥
-  useEffect(() => {
-    const storedKey = getCookie('gemini_api_key');
-    if (storedKey) {
-      // @ts-ignore
-      process.env.API_KEY = storedKey;
-      setNeedsApiKey(false);
-    } else if (process.env.API_KEY && process.env.API_KEY.length > 5) {
-      setNeedsApiKey(false);
-    } else {
-      setNeedsApiKey(true);
-    }
-  }, []);
-
-  const handleSaveApiKey = () => {
-    if (apiKeyInput.trim().length < 10) {
-      showToast('请输入有效的 API 密钥', 'error');
-      return;
-    }
-    
-    // 存储到 Cookie (有效期 365 天)
-    setCookie('gemini_api_key', apiKeyInput.trim(), 365);
-    // 注入到环境变量供 SDK 使用
-    // @ts-ignore
-    process.env.API_KEY = apiKeyInput.trim();
-    
-    setNeedsApiKey(false);
-    showToast('密钥已保存并激活', 'success');
-  };
 
   const showToast = useCallback((message: string, type: 'info' | 'error' | 'success' = 'info') => {
     setToast({ message, type });
@@ -194,12 +146,6 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      
-      if (err.message?.includes("API Key") || err.message?.includes("invalid")) {
-        setNeedsApiKey(true);
-        showToast('API 密钥验证失败，请重新输入', 'error');
-      }
-
       setHistory(prev => prev.map(item => item.id === id ? { ...item, status: 'failed' } : item));
       if (activeId === id) {
         showToast(err.message || '分析失败', 'error');
@@ -210,10 +156,9 @@ const App: React.FC = () => {
   }, [history, activeId, showToast]);
 
   useEffect(() => {
-    if (needsApiKey) return;
     const pendingItems = history.filter(item => item.status === 'pending');
     pendingItems.forEach(item => runAnalysis(item.id));
-  }, [history, runAnalysis, needsApiKey]);
+  }, [history, runAnalysis]);
 
   useEffect(() => {
     localStorage.setItem('rtl_audit_history', JSON.stringify(history));
@@ -237,72 +182,9 @@ const App: React.FC = () => {
     }
   };
 
-  const resetAudit = () => {
-    setActiveId(null);
-  };
-
-  const [activeHighlightIndex, setActiveHighlightIndex] = useState<number | null>(null);
-
   return (
     <div className="flex h-screen bg-slate-950 text-slate-200 overflow-hidden selection:bg-blue-500/30 font-sans relative">
-      
-      {/* API Key 输入弹窗 */}
-      {needsApiKey && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="max-w-md w-full mx-6 bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-blue-600 opacity-50"></div>
-            
-            <div className="relative z-10 space-y-6">
-              <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto border border-blue-500/20">
-                <Key className="text-blue-500" size={32} />
-              </div>
-              
-              <div className="text-center space-y-2">
-                <h2 className="text-2xl font-black text-white uppercase tracking-tight italic">首次使用配置</h2>
-                <p className="text-slate-400 text-sm leading-relaxed px-4">
-                  请输入您的 <strong>Gemini API Key</strong>。该密钥将安全存储在本地 Cookie 中，后续无需重复输入。
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="relative group">
-                  <input 
-                    type="password"
-                    value={apiKeyInput}
-                    onChange={(e) => setApiKeyInput(e.target.value)}
-                    placeholder="在此输入 API 密钥..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-5 py-4 text-white text-sm focus:outline-none focus:border-blue-500/50 transition-all placeholder:text-slate-700 font-mono group-hover:border-slate-700"
-                    onKeyDown={(e) => e.key === 'Enter' && handleSaveApiKey()}
-                  />
-                  <div className="absolute inset-0 rounded-xl bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                </div>
-
-                <button 
-                  onClick={handleSaveApiKey}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black uppercase tracking-[0.2em] transition-all shadow-[0_15px_30px_rgba(37,99,235,0.2)] active:scale-95 flex items-center justify-center gap-3 border border-blue-400/20"
-                >
-                  <Save size={18} /> 保存并开始使用
-                </button>
-                
-                <div className="text-center">
-                  <a 
-                    href="https://aistudio.google.com/app/apikey" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-[10px] font-black text-slate-500 hover:text-blue-400 transition-colors uppercase tracking-widest"
-                  >
-                    从 Google AI Studio 获取密钥 <ExternalLink size={10} />
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-blue-600/5 rounded-full blur-[100px]"></div>
-          </div>
-        </div>
-      )}
-
-      {/* Toast Notification */}
+      {/* Toast 通知 */}
       {toast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className={`px-6 py-3 rounded-2xl shadow-2xl border flex items-center gap-3 backdrop-blur-xl ${
@@ -374,13 +256,7 @@ const App: React.FC = () => {
             )}
           </div>
 
-          <div className="p-6 border-t border-slate-800 space-y-3">
-            <button 
-              onClick={() => { setNeedsApiKey(true); setShowHistory(false); }}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-white hover:bg-slate-700 transition-all"
-            >
-              <Key size={12} /> 修改 API 密钥
-            </button>
+          <div className="p-6 border-t border-slate-800">
             {history.length > 0 && (
               <button 
                 onClick={clearAllHistory}
@@ -407,7 +283,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-3">
               <ShieldCheck className="text-blue-500" size={24} />
               <h1 className="text-lg font-black tracking-tight text-white uppercase italic text-shadow flex items-center">
-                RTL AUDITOR <span className="ml-4 text-[11px] font-black not-italic bg-gradient-to-r from-blue-600 to-indigo-500 text-white px-4 py-1.5 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.5)] border border-blue-400/30 uppercase tracking-[0.25em] self-center">v0.2.3</span>
+                RTL AUDITOR <span className="ml-4 text-[11px] font-black not-italic bg-gradient-to-r from-blue-600 to-indigo-500 text-white px-4 py-1.5 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.5)] border border-blue-400/30 uppercase tracking-[0.25em] self-center">v0.2.6</span>
               </h1>
             </div>
           </div>
@@ -415,7 +291,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
             {activeId && (
               <button 
-                onClick={resetAudit}
+                onClick={() => setActiveId(null)}
                 className="flex items-center gap-2 text-slate-500 hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all"
               >
                 <Plus size={16} /> 新分析
@@ -446,15 +322,14 @@ const App: React.FC = () => {
                 <div className="w-20 h-20 bg-slate-900 rounded-[1.75rem] flex items-center justify-center shadow-2xl border border-slate-800 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 mb-8 group-hover:border-blue-500/30">
                   <Type className="text-slate-700 group-hover:text-blue-500" size={32} />
                 </div>
-                <h2 className="text-2xl font-black text-white uppercase tracking-widest mb-4 text-center px-6">右至左语言布局合规审计</h2>
+                <h2 className="text-2xl font-black text-white uppercase tracking-widest mb-4 text-center px-6 text-balance">右至左语言布局合规审计</h2>
                 <div className="flex flex-col items-center gap-6">
-                  <p className="text-slate-500 text-sm font-medium tracking-tight group-hover:text-slate-500">点击上传、拖入截图或直接粘贴 (Ctrl+V)</p>
+                  <p className="text-slate-500 text-sm font-medium tracking-tight">点击上传、拖入截图或直接粘贴 (Ctrl+V)</p>
                 </div>
               </div>
             </div>
           ) : (
             <div className="w-full h-full flex lg:flex-row flex-col p-8 lg:p-12 gap-8 overflow-hidden items-center justify-center">
-              
               <div className="lg:w-[60%] flex flex-col gap-6 h-full relative overflow-hidden justify-center items-center">
                 {activeItem.status !== 'completed' ? (
                   <div className="relative group rounded-[2rem] overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl flex items-center justify-center w-full h-[70vh] hover:border-blue-500/50 hover:bg-blue-500/5 transition-all duration-500">
@@ -510,10 +385,9 @@ const App: React.FC = () => {
               <div className={`lg:w-[40%] flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-6 pl-2 h-full py-4 transition-all duration-300 isolate ${activeHighlightIndex !== null ? 'z-30 relative' : 'z-10 relative'}`}>
                 {activeItem.status === 'completed' && activeItem.analysis ? (
                   <div className="space-y-6 animate-in slide-in-from-right-8 duration-700">
-                    
                     <div className="bg-slate-900/80 border-2 border-blue-500/20 rounded-[2rem] p-8 shadow-2xl backdrop-blur-sm">
                        <h4 className="text-blue-400 text-[10px] font-black uppercase tracking-[0.4em] mb-4">审计概览</h4>
-                       <p className={`text-white text-xl font-black leading-tight`}>
+                       <p className="text-white text-xl font-black leading-tight">
                          {activeItem.analysis.overallSummary}
                        </p>
                     </div>
@@ -585,9 +459,7 @@ const App: React.FC = () => {
                               <CheckCircle2 size={48} className="text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                             </div>
                             <h3 className="text-2xl font-black text-white uppercase tracking-wider mb-3">此界面 RTL 布局合规</h3>
-                            <p className="text-emerald-400/80 text-sm font-bold uppercase tracking-widest max-w-[240px]">
-                              未识别到排版对齐异常。
-                            </p>
+                            <p className="text-emerald-400/80 text-sm font-bold uppercase tracking-widest max-w-[240px]">未识别到排版对齐异常。</p>
                             <div className="mt-8 px-6 py-2 bg-emerald-500/20 border border-emerald-500/30 rounded-full text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] shadow-lg animate-bounce">
                               Audit Passed
                             </div>
@@ -612,7 +484,6 @@ const App: React.FC = () => {
                   </div>
                 )}
               </div>
-
             </div>
           )}
         </div>
@@ -626,22 +497,11 @@ const App: React.FC = () => {
       )}
       
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #1e293b;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #3b82f6;
-        }
-        .text-shadow {
-          text-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
+        .text-shadow { text-shadow: 0 4px 12px rgba(0,0,0,0.5); }
       `}</style>
     </div>
   );

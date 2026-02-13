@@ -3,13 +3,14 @@ import { SYSTEM_INSTRUCTION } from "../constants";
 import { RTLAnalysis } from "../types";
 
 export const analyzeRTLInterface = async (base64Image: string): Promise<RTLAnalysis> => {
-  // 必须在调用前实例化，以确保使用最新的 process.env.API_KEY
+  // 直接从 process.env 获取，不进行手动干预，符合 SDK 安全指南
   const apiKey = process.env.API_KEY;
   
-  if (!apiKey || apiKey === '') {
-    throw new Error("An API Key must be set when running in a browser. 请点击界面提示选择密钥。");
+  if (!apiKey) {
+    throw new Error("检测到 API 密钥缺失。请确保环境已预配置 process.env.API_KEY。");
   }
 
+  // 每次请求实例化一次，确保捕获最新环境上下文
   const ai = new GoogleGenAI({ apiKey });
   
   try {
@@ -62,27 +63,19 @@ export const analyzeRTLInterface = async (base64Image: string): Promise<RTLAnaly
       }
     });
 
-    let jsonStr = response.text?.trim() || '{}';
-    
-    // 兼容可能出现的 Markdown 代码块包裹
-    const jsonMatch = jsonStr.match(/```json\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1];
-    }
-
+    const jsonStr = response.text || '{}';
     return JSON.parse(jsonStr) as RTLAnalysis;
   } catch (err: any) {
     console.error("Gemini Analysis Error:", err);
     
-    // 特殊处理密钥未找到或失效的错误
-    if (err.message?.includes("Requested entity was not found") || err.message?.includes("API key not valid")) {
-      throw new Error("Requested entity was not found. 可能是 API Key 无效或已过期，请重新配置。");
+    if (err.message?.includes("API key not valid") || err.message?.includes("403")) {
+      throw new Error("API 密钥校验失败或权限受限，请检查当前环境授权。");
     }
 
     if (err.message?.includes('500') || err.message?.includes('xhr')) {
-      throw new Error("服务端响应超时或错误 (500)，可能是图片过大或网络不稳定，请重试。");
+      throw new Error("后端响应异常，请尝试缩小图片尺寸或重试。");
     }
     
-    throw new Error(err.message || "模型处理失败，请检查图片内容是否清晰后重试。");
+    throw new Error(err.message || "审计分析失败，请检查网络或图片内容。");
   }
 };
