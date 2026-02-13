@@ -51,32 +51,44 @@ const App: React.FC = () => {
   // 检查 API Key 状态
   useEffect(() => {
     const checkApiKey = async () => {
-      // 优先检查环境变量
+      // 1. 优先检查环境变量
       if (process.env.API_KEY && process.env.API_KEY !== '') {
         setNeedsApiKey(false);
         return;
       }
       
-      // 检查是否在 AI Studio 环境并选择了 Key
+      // 2. 检查是否在 AI Studio 环境并选择了 Key
+      // @ts-ignore
       if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+        // @ts-ignore
         const hasKey = await window.aistudio.hasSelectedApiKey();
         setNeedsApiKey(!hasKey);
       } else {
-        // 如果没有注入 key，则视为需要设置
+        // 3. 生产环境下如果无法检测到环境变量，显示引导
         setNeedsApiKey(true);
       }
     };
     checkApiKey();
   }, []);
 
-  const handleOpenSelectKey = async () => {
+  const handleOpenSelectKey = () => {
+    // 根据规范，必须假设密钥选择成功并立即继续进入应用
+    // @ts-ignore
     if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-      await window.aistudio.openSelectKey();
-      // 根据规则，假设选择成功并继续
-      setNeedsApiKey(false);
-      showToast('API 密钥已更新', 'success');
+      try {
+        // @ts-ignore
+        window.aistudio.openSelectKey();
+        // 立即切换状态，不要等待 await 结果，防止竞态条件或对话框阻塞
+        setNeedsApiKey(false);
+        showToast('正在应用 API 配置...', 'success');
+      } catch (err) {
+        console.error("Failed to open select key:", err);
+        showToast('唤起密钥配置失败', 'error');
+      }
     } else {
-      showToast('无法唤起密钥选择器，请检查运行环境', 'error');
+      // 如果不在支持 aistudio 的环境下，尝试直接继续（可能环境变量已注入但 hasSelectedApiKey 不存在）
+      setNeedsApiKey(false);
+      showToast('尝试直接连接 API...', 'info');
     }
   };
 
@@ -187,7 +199,7 @@ const App: React.FC = () => {
       console.error(err);
       
       // 如果报错 Requested entity was not found，重置 key 状态
-      if (err.message?.includes("Requested entity was not found")) {
+      if (err.message?.includes("Requested entity was not found") || err.message?.includes("API key not valid")) {
         setNeedsApiKey(true);
         showToast('API 密钥已失效，请重新配置', 'error');
       }
